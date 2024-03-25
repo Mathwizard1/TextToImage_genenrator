@@ -1,0 +1,10 @@
+Hello,
+ this is a sample message. My name is anshurup.
+This is text to image encryption decryption.
+Enjoy using it. 
+	\_(00)_/
+	  |TT|
+	  VVVV
+	  I  I
+
+	-CS112project 2.
