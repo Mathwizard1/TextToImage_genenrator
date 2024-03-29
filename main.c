@@ -12,7 +12,6 @@
 #define data_file "data\\userdat.bin"
 #define contact_file "data\\contacts.bin"
 #define message_folder "messages\\"
-#define encrypt_folder "encryptionfile\\"
 #define decrypt_folder "decryptionfile\\"
 
 
@@ -20,8 +19,6 @@
 #define max_string_size 45
 #define line_length 512
 
-//squish factor 675 -> 255
-//"aa.." maps to 0 and "zz.." maps to 675
 /*
 for random mapping of 2 alphabet letters
 it starts from 97 goes to 122
@@ -32,14 +29,13 @@ it starts from 97 goes to 122
 #define max_hash_val 10000000
 
 // color definitions
-#define KNRM  "\x1B[0m"
 #define KRED  "\x1B[31m"   // Error end
 #define KGRN  "\x1B[32m"   // success end
 #define KYEL  "\x1B[33m"   // Warning cause
-#define KBLU  "\x1B[34m"
-#define KMAG  "\x1B[35m"    // login
-#define KCYN  "\x1B[36m"    // questions
-#define KWHT  "\x1B[37m"
+#define KBLU  "\x1B[34m"   // message and image contents
+#define KMAG  "\x1B[35m"   // login
+#define KCYN  "\x1B[36m"   // questions
+#define KWHT  "\x1B[37m"   // starting instructions
 
 // structures
 typedef struct node
@@ -68,16 +64,17 @@ typedef struct one_pixel
     (251, , ) -> border pixels
     (252, x, x) -> single character encoding
     (253, y, z) -> double character encoding
-    (254, , ) -> non ascii encoding          --> for future upgrades.
+
+    (254, y, z) -> non-dictionary words and characters
+    (254, , ) -> non ascii encoding  start and end       --> for future upgrades.
+
     (255, , ) -> start and end of the pixels
 */
 
 #define control_border_pixel 251
 #define control_single_encoding 252
 #define control_double_encoding 253
-
-/*#define control_nascii_encoding 254*/
-
+#define control_nascii_encoding 254
 #define control_start_end_pixel 255
 
 struct user
@@ -88,7 +85,7 @@ struct user
 } user_data;
 
 // global variables
-
+// user_data as a struct
 
 // basic file functions
 void Error_message(int i);
@@ -127,6 +124,7 @@ int main() {
     char passw[string_size], filename[string_size], filepath[max_string_size];
     passw[0] = filename[0] = filepath[0] = '\0';
 
+    // message array
     char **message_array;
 
     // initialise the starting pixel
@@ -157,13 +155,13 @@ int main() {
     {
         if(count)
         {
-            printf("Incorrect password.\nRetry: ");
+            printf(KYEL"Incorrect password.\nRetry: ");
         }
 
         if(count == 6)
         {
             int passkey;
-            printf("\nEnter passkey: ");
+            printf(KMAG"\nEnter passkey: ");
             scanf("%d", &passkey);
             if(passkey != user_data.saved_passkey)
             {
@@ -192,8 +190,7 @@ int main() {
 
     if(ans)
     {
-        printf("\nEnter the name of your message file (max 20 characters long).\nThe file should be present in the messages folder: \n");
-        //strcpy(filename, "sample"); 
+        printf(KCYN"\nEnter the name of your message file (max 20 characters long).\nThe file should be present in the messages folder: \n");
         scanf("%[^\n]%*c", &filename);
 
         strcat(filepath, message_folder);
@@ -204,7 +201,7 @@ int main() {
 
         if(file_not_exists(filepath)) 
         {
-            printf("%s -> No such files found in messages folder.\n", filename); 
+            printf(KYEL"%s -> No such files found in messages folder.\n", filename); 
             dict_Unloader(hash_table);
             Error_message(2);}
 
@@ -221,11 +218,11 @@ int main() {
             Error_message(0);
         }
 
-        printf("Contents of %s file for encrypting:\n", filename);
+        printf(KBLU"Contents of %s file for encrypting:\n", filename);
         num_pixel = txt_to_rgb(message_array, num_lines, &val_image, hash_table);
 
         //remove filename's extension
-        //filename[strlen(filename) - 4] = '\0';
+        filename[strlen(filename) - 4] = '\0';
 
         message_Unloader(&message_array, num_lines);
         dict_Unloader(hash_table);
@@ -240,11 +237,11 @@ int main() {
     }
     else
     {
-        printf(KMAG"\nEnter the name of your image file (max 20 characters long).\nThe image should be present in the decryptionfile folder: \n");
+        printf(KCYN"\nEnter the name of your image file (max 20 characters long).\nThe image should be present in the decryptionfile folder: \n");
         //strcpy(filename, "output"); 
         scanf("%[^\n]%*c", &filename);
 
-        //strcat(filepath, message_folder);
+        strcat(filepath, decrypt_folder);
         strcat(filename, ".png");
         strcat(filepath, filename);
 
@@ -293,14 +290,9 @@ int main() {
             }
         }
 
-        /*filepath[0] = '\0';
-        strcpy(filepath, encrypt_folder);
-        strcat(filename,".png");
-        strcat(filepath, filename);*/
-
         // Set compression type to PNG with zero compression
         // Save the image
-        FreeImage_Save(FIF_PNG, image, "output.png", PNG_Z_NO_COMPRESSION);
+        FreeImage_Save(FIF_PNG, image, strcat(filename,".png"), PNG_Z_NO_COMPRESSION);
 
         // Unload the image
         FreeImage_Unload(image);
@@ -316,7 +308,6 @@ int main() {
             unsigned width = FreeImage_GetWidth(de_image);
             unsigned height = FreeImage_GetHeight(de_image);
 
-            printf("\n%u %u\n", width, height);
             RGBQUAD pixelColor;
 
             one_pixel *temp_pixel = &val_image;
@@ -327,7 +318,7 @@ int main() {
                     // Get the color of the current pixel
                     if (FreeImage_GetPixelColor(de_image, x, y, &pixelColor)) {
                         // Print the RGB values of the pixel
-                        printf("Pixel (%u, %u): [%u %u %u]\n", x, y, pixelColor.rgbRed, pixelColor.rgbGreen, pixelColor.rgbBlue);
+                        //printf(KBLU"Pixel (%u, %u): [%u %u %u]\n", x, y, pixelColor.rgbRed, pixelColor.rgbGreen, pixelColor.rgbBlue);
                         
                         if(pixelColor.rgbRed != control_border_pixel && png_to_pixel(pixelColor.rgbRed, pixelColor.rgbGreen, pixelColor.rgbBlue, temp_pixel))
                         { temp_pixel = temp_pixel -> next_pixel; }
@@ -345,9 +336,12 @@ int main() {
             // Unload the image when done
             FreeImage_Unload(de_image);
 
+            //remove filename's extension
+            filename[strlen(filename) - 4] = '\0';
+
             // make the text file
             if(!imgflag)
-            { pixel_dehash(&val_image, hash_table, "output.txt"); }
+            { pixel_dehash(&val_image, hash_table, strcat(filename, ".txt")); }
         } 
         else { printf(KYEL"Failed to load the image.\n"); imgflag = 1;}
     }
@@ -436,7 +430,7 @@ bool file_not_exists(char *filepath)
     return val;
 }
 
-// sqrt for sqare base of image
+// sqrt round off for sqare base of image
 int babylon_sqrt(int n)
 {
     float ans = 0.0001;
@@ -534,7 +528,7 @@ one_pixel *hash_string(char *string, one_pixel *curr_pixel, short unsigned int v
         case 1:
             // single channel encoding
             {
-                n_pixel -> red = 252;
+                n_pixel -> red = control_single_encoding;
                 n_pixel -> green = (int)mod_word[0];
                 n_pixel -> blue = (int)mod_word[0];
             }
@@ -542,7 +536,7 @@ one_pixel *hash_string(char *string, one_pixel *curr_pixel, short unsigned int v
         case 2:
             // double channel encoding
             {
-                n_pixel -> red = 253;
+                n_pixel -> red = control_double_encoding;
                 n_pixel -> green = (int)(mod_word[0]);
                 n_pixel -> blue = (int)(mod_word[1]);
             }
@@ -648,35 +642,39 @@ one_pixel *hash_string(char *string, one_pixel *curr_pixel, short unsigned int v
         {
             // single channel encoding
             {
-                n_pixel -> red = 252;
+                n_pixel -> red = control_single_encoding;
                 n_pixel -> green = (int)mod_word[0];
                 n_pixel -> blue = (int)mod_word[0];
             }
+
+            printf("%c [%d %d %d]\n", mod_word[strlen(mod_word) - 1], (n_pixel->red), (n_pixel->green), (n_pixel->blue));
         }
         else if (len == 2)
         {
             // double channel encoding
             {
-                n_pixel -> red = 253;
+                n_pixel -> red = control_double_encoding;
                 n_pixel -> green = (int)(mod_word[0]);
                 n_pixel -> blue = (int)(mod_word[1]);
             }            
+
+            printf("%c%c [%d %d %d]\n", mod_word[strlen(mod_word) - 2],mod_word[strlen(mod_word) - 1], (n_pixel->red), (n_pixel->green), (n_pixel->blue));
         }
     }
         if(((val && found) || !val) && len >= 3)
         {
-            // general encoding
+            // general encoding non ascii control
             while(strlen(mod_word) > 2)
             {
                 one_pixel *temp = (one_pixel *)malloc(sizeof(one_pixel));
                 if(temp == NULL) { return NULL; }
                 {
-                    temp -> red = 253;
+                    temp -> red = control_nascii_encoding;
                     temp -> green = (int)(mod_word[strlen(mod_word) - 2]);
                     temp -> blue = (int)(mod_word[strlen(mod_word) - 1]);
                 }
 
-                printf("%c%c->%p\n", mod_word[strlen(mod_word) - 2],mod_word[strlen(mod_word) - 1], temp);
+                printf("%c%c [%d %d %d]\n", mod_word[strlen(mod_word) - 2],mod_word[strlen(mod_word) - 1], (temp->red), (temp->green), (temp->blue));
 
                 if(looped) { tail = temp; looped = 0; }
 
@@ -688,20 +686,22 @@ one_pixel *hash_string(char *string, one_pixel *curr_pixel, short unsigned int v
 
             if(strlen(mod_word) == 2)
             {
-                n_pixel -> red = 253;
+                n_pixel -> red = control_nascii_encoding;
                 n_pixel -> green = (int)(mod_word[0]);
                 n_pixel -> blue = (int)(mod_word[1]);
+                printf("%c%c [%d %d %d]\n", mod_word[strlen(mod_word) - 2],mod_word[strlen(mod_word) - 1], (n_pixel->red), (n_pixel->green), (n_pixel->blue));
             }
             else
             {
-                n_pixel -> red = 252;
+                n_pixel -> red = control_nascii_encoding;
                 n_pixel -> green = (int)mod_word[0];
-                n_pixel -> blue = (int)mod_word[0];
+                n_pixel -> blue = (int)('\0');
+                printf("%c [%d %d %d]\n", mod_word[strlen(mod_word) - 2], (n_pixel->red), (n_pixel->green), (n_pixel->blue));
             }
         }
 
     curr_pixel -> next_pixel = n_pixel;
-    printf("%s->%p\n",mod_word, n_pixel);
+    //printf("%s->%p\n",mod_word, n_pixel);
     
     if(looped)
     {
@@ -879,7 +879,7 @@ bool dict_Loader(node_head hash_table_address[hash_bucket_row][hash_bucket_colum
         }
     }
 
-    printf(KGRN"\nDictionary ready. %d words loaded.\n %d->%d\n", count, jmap_start, jmap_end);
+    printf(KGRN"\nDictionary ready. %d words loaded.", count);
     fclose(fp);
     return 0;
 }
@@ -1037,7 +1037,7 @@ int txt_to_rgb(char **msg_array, int size, one_pixel *start_pixel, node_head has
     while(temp != NULL)
     {
         number_pixels++;
-        printf("%d) %p [%d %d %d]\n", number_pixels, temp, temp->red, temp->green, temp->blue);
+        //printf("%d) %p [%d %d %d]\n", number_pixels, temp, temp->red, temp->green, temp->blue);
         temp = temp -> next_pixel;
     }
 
@@ -1111,13 +1111,13 @@ void pixel_dehash(one_pixel *image_data, node_head hash_table_address[hash_bucke
 
     bool add_space = true;
 
-    char word_holder[max_string_size], next_c = '\0';
+    char word_holder[max_string_size], next_c = '\0', next_c1 = '\0', curr_c0 = '\0', curr_c1 = '\0';
     word_holder[0] = '\0';
 
     one_pixel *temp = image_data -> next_pixel;
     while(temp != NULL)
     {
-        printf("%p [%d %d %d] -> %p\n", temp, temp->red,temp->green,temp->blue,temp->next_pixel);
+        //printf("%p [%d %d %d] -> %p\n", temp, temp->red,temp->green,temp->blue,temp->next_pixel);
         switch (temp -> red)
         {
         case control_start_end_pixel:
@@ -1125,13 +1125,49 @@ void pixel_dehash(one_pixel *image_data, node_head hash_table_address[hash_bucke
             break;
 
         case control_single_encoding:
-            fprintf(fp, "%c ", (char) (temp -> green), (char) (temp -> blue));
+            fprintf(fp, "%c ", (char) (temp -> green));
 
             break;
         case control_double_encoding:
             fprintf(fp, "%c%c ", (char) (temp -> green), (char) (temp -> blue));
 
-            break;        
+            break;     
+        case control_nascii_encoding:    
+            curr_c0 = (char)((temp)->green);
+            curr_c1 = (char)((temp)->blue);
+
+            if(curr_c1 == '\0')
+            {
+                word_holder[0] = curr_c0;
+                word_holder[1] = '\0';
+            }
+            else
+            {
+                word_holder[0] = curr_c0;
+                word_holder[1] = curr_c1;    
+                word_holder[2] = '\0';              
+            }
+
+            if((temp->next_pixel)->red == control_nascii_encoding)
+            {
+                next_c = (char)((temp->next_pixel)->green);
+                if(!(isalpha(curr_c1) ^ isalpha(next_c)) || word_holder[1] == '\0')
+                {
+                    fprintf(fp, "%s", word_holder);                    
+                }
+                else
+                {
+                    fprintf(fp, "%s ", word_holder);
+                }
+            }
+            else
+            {
+                fprintf(fp, "%s ", word_holder);
+            }
+
+            word_holder[0] = '\0';
+
+            break;
         default:
             temp_node = hash_table_address[temp ->red][temp ->green].start;
             while(collision < (temp -> blue))
@@ -1141,21 +1177,16 @@ void pixel_dehash(one_pixel *image_data, node_head hash_table_address[hash_bucke
             }
             strcpy(word_holder, temp_node -> word);
 
-            if((temp->next_pixel)->red == control_single_encoding || (temp->next_pixel)->red == control_double_encoding)
+            next_c = (char)((temp->next_pixel)->green);
+            next_c1 = (char)((temp->next_pixel)->blue);            
+
+            if(next_c == '.' && ((temp->next_pixel)->red == control_single_encoding) || (next_c1 == '\n' && (temp->next_pixel)->red == control_double_encoding))
             {
-                next_c = (char)((temp->next_pixel)->green);
-                if(isalpha(next_c))
-                {
-                    fprintf(fp, "%s ", word_holder);                    
-                }
-                else
-                {
-                    fprintf(fp, "%s", word_holder);                    
-                }
+                fprintf(fp, "%s", word_holder);
             }
             else
             {
-                fprintf(fp, "%s ", word_holder);
+                fprintf(fp, "%s ", word_holder);                
             }
 
             word_holder[0] = '\0';
