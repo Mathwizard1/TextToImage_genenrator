@@ -1,15 +1,15 @@
 /* Text to image encrytion decryption
-
-
+This project converts a text file to a png file encrypting information in it.
+- Anshurup gupta
 */
 
 // standard libraries
-#include <stdlib.h> //standard library
-#include <stdio.h>  //standard input/output library
-#include <ctype.h>  //character classification functions
-#include <string.h> //strings
+#include <stdlib.h>  //standard library
+#include <stdio.h>   //standard input/output library
+#include <ctype.h>   //character classification functions
+#include <string.h>  //strings
 #include <stdbool.h> //booloean macros
-#include <time.h>
+#include <time.h>    //time library
 
 // imported libraries
 #include "FreeImage.h" //image processing
@@ -23,7 +23,6 @@
 #define contact_file "data\\contacts.bin"
 #define message_folder "messages\\"
 #define decrypt_folder "decrypt\\"
-#define encrypt_folder "encrypt\\"
 
 // color definitions
 #define KRED  "\033[31m"   // Error end colors
@@ -37,7 +36,7 @@
 // string limits
 #define string_size 30      // normal 30 characters words
 #define max_string_size 45  // maximum 45 characters words
-#define line_length 512     // maximum 512 characters string
+#define line_length 2048     // maximum 2048 characters string
 
 // hashing constants
 #define hash_bucket_row 250     // hash all words into 250 row buckets
@@ -286,7 +285,7 @@ int main()
             scanf("%d%*c", &contact_num);
         }else if(num_users == 0) { contact_num = 0; }
 
-        // Set common key used for the encryption
+        // Set common key used for the encryption according to the user chosen
         if(contact_num < 0 || contact_num > num_users)
         {
             if(num_users < 0) {printf(KYEL"Error in reading contact file.\n"); Error_message(0); }
@@ -385,7 +384,7 @@ int main()
             Error_message(0);
         }
 
-        printf("%d %d are the values.\n",num_lines, image_square);
+        //printf("%d %d are the values.\n",num_lines, image_square);
     }
     else if(ans == '3')
     {
@@ -417,7 +416,7 @@ int main()
         ptr = localtime(&lt);
         char *user_date = asctime(ptr);
 
-        // using the asctime() function to get the time of initialisation.
+        // using the asctime() function to get the time of update.
         printf(KMAG"\n%s updated account on %s\n", user_data.saved_username, user_date);
 
         user_data.saved_private_key = ((private_key << 2) ^ (user_data.saved_passkey % K_limit)) >> 2 | (hash_word(user_date, 0) % Z_limit + 1);
@@ -1482,8 +1481,7 @@ int txt_to_rgb(char **msg_array, int size, one_pixel *start_pixel, node_head has
 {
     char c,char_holder[max_string_size], word_holder[max_string_size];
     int len = 0, w_len = 0, c_len = 0, number_pixels = 0;
-
-    int count = 0;
+    int display_counter = 0;
 
     // additional basic ceaser encryption
     int ceaser_shift = (sender_user_common_key % control_start_end_pixel);
@@ -1494,7 +1492,9 @@ int txt_to_rgb(char **msg_array, int size, one_pixel *start_pixel, node_head has
 
     for(int i = 0; i < size; i++)
     {
-        printf("%s",msg_array[i]);
+        if(display_counter < 10 && display_counter >= 0) { printf("%s", msg_array[i]); }
+        else if(display_counter >= 10) {printf(".....\n"); display_counter = -1; }
+
         len = strlen(msg_array[i]);
         for (int j = 0; j < len; j++)
         {
@@ -1527,6 +1527,11 @@ int txt_to_rgb(char **msg_array, int size, one_pixel *start_pixel, node_head has
                 char_holder[c_len] = c;
                 char_holder[c_len + 1] = '\0'; 
             }
+        }
+
+        if(display_counter >= 0)
+        {
+            display_counter++;
         }
     }
 
@@ -1603,11 +1608,12 @@ void pixel_dehash(one_pixel *image_data, node_head hash_table_address[hash_bucke
     FILE *fp = fopen(filesavepath, "w");
     node *temp_node;
     int collision = 1, count = 0;
+    int display_counter = 0;
 
     // additional basic ceaser encryption
     int ceaser_deshift = (sender_user_common_key % control_start_end_pixel);
+    int temp_red_val = 0;
 
-    bool add_space = true;
     char word_holder[max_string_size], next_c = '\0', next_c1 = '\0', curr_c0 = '\0', curr_c1 = '\0';
     word_holder[0] = '\0';
 
@@ -1615,7 +1621,9 @@ void pixel_dehash(one_pixel *image_data, node_head hash_table_address[hash_bucke
 
     while(temp != NULL)
     {
-        printf("%d) %p [%d %d %d] -> %p\n",count, temp, temp->red,temp->green,temp->blue,temp->next_pixel);
+        if(display_counter < max_string_size && display_counter >= 0) printf("%d) %p [%d %d %d] -> %p\n",count, temp, temp->red,temp->green,temp->blue,temp->next_pixel);
+        else if(display_counter >= max_string_size) {printf(".....\n"); display_counter = -1; }
+
         if(count < 2)
         {
             // remove ceaser shift
@@ -1652,7 +1660,9 @@ void pixel_dehash(one_pixel *image_data, node_head hash_table_address[hash_bucke
                         word_holder[2] = '\0';              
                     }
 
-                    if((temp->next_pixel)->red == control_nascii_encoding)
+                    temp_red_val = ((temp->next_pixel)->red + ceaser_deshift) % control_start_end_pixel;
+
+                    if(temp_red_val == control_nascii_encoding)
                     {
                         next_c = (char)((temp->next_pixel)->green);
                         if(!(isalpha(curr_c1) ^ isalpha(next_c)) || word_holder[1] == '\0')
@@ -1707,6 +1717,8 @@ void pixel_dehash(one_pixel *image_data, node_head hash_table_address[hash_bucke
         }
 
         temp = temp -> next_pixel;
+
+        if(display_counter >= 0) display_counter++;
     }
 
     fclose(fp);
