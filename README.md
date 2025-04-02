@@ -50,10 +50,6 @@ This project is a C-based application that takes a text file containing a normal
 
 Feel free to submit issues and pull requests. Any contributions, such as new features or bug fixes, are welcome!
 
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## Acknowledgments
 
 - Thanks to the authors of the FreeImage library.
